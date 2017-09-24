@@ -9,7 +9,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST')
 	
 	$url = 'https://www.google.com/recaptcha/api/siteverify';
 	
-	$secret = '6LehWCgUAAAAAJonNwWHN0qegEz1uwbkk2O75evU';
+	$secret = '*******'; //secret from g-recaptcha
 	$recaptcha = $_POST['g-recaptcha-response'];
 	$ip = $_SERVER['REMOTE_ADDR'];
 	
