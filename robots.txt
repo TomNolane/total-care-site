@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /admin
-sitemap: http://total-care.ru//sitemap.xml
-Host: total-care.ru/
