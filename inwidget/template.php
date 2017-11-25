@@ -10,7 +10,7 @@
  * @link http://inwidget.ru
  * @copyright 2014-2017 Alexandr Kazarmshchikov
  * @author Alexandr Kazarmshchikov
- * @version 1.1.0
+ * @version 1.1.3
  * @package inWidget
  *
  */
@@ -35,7 +35,7 @@ if(!is_object($inWidget->data)) die('<b style="color:red;">Cache file contains p
 				width: <?php echo ($inWidget->width-44); ?>px;
 				<?php if($inWidget->width<160) echo 'display:none'; ?>
 			}
-			.widget .data a.image:link, .widget .data a.image:visited{
+			.widget .data a.image:link, .widget .data a.image:visited {
 				width:<?php echo $inWidget->imgWidth; ?>px;
 				height:<?php echo $inWidget->imgWidth; ?>px;
 			}
@@ -89,10 +89,9 @@ if(!is_object($inWidget->data)) die('<b style="color:red;">Cache file contains p
 		$count = $inWidget->countAvailableImages($inWidget->data->images);
 		if($count>0) {
 			if($inWidget->config['imgRandom'] === true) shuffle($inWidget->data->images);
-			//$inWidget->data->images = array_slice($inWidget->data->images,0,$inWidget->view);
 			echo '<div id="widgetData" class="data">';
 				foreach ($inWidget->data->images as $key=>$item){
-					if($inWidget->isBannedUserId($item->authorId) == true) continue;
+					if($inWidget->isBannedUserId($item->authorId) === true) continue;
 					switch ($inWidget->preview){
 						case 'large':
 							$thumbnail = $item->large;

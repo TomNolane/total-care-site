@@ -11,107 +11,85 @@
  * @link http://inwidget.ru
  * @copyright 2014-2017 Alexandr Kazarmshchikov
  * @author Alexandr Kazarmshchikov
- * @version 1.1.0
+ * @version 1.1.3
  * @package inWidget
  *
  */
 
-use InstagramScraper\Instagram;
-
 class inWidget {
-	public $config = array();
-	public $data = array();
+	public $config = [];
+	public $data = [];
+	private $account = false;
+	private $medias = false;
+	private $api = false;
+	private $banned = [];
 	public $width = 260;
 	public $inline = 4;
 	public $view = 12;
 	public $toolbar = true;
 	public $preview = 'small';
 	public $imgWidth = 0;
-	public $cacheFile = 'cache/{$LOGIN}.txt';
-	public $lang = array();
+	public $lang = [];
 	public $langName = '';
-	public $langPath = 'lang/';
-	public $answer = '';
-	public $errors = array(
+	private $langPath = 'lang/';
+	private $answer = '';
+	private $cacheFile = 'cache/{$LOGIN}.txt';
+	private $errors = array(
 		101=>'Can\'t get access to file <b>{$cacheFile}</b>. Check permissions.',
 		102=>'Can\'t get modification time of <b>{$cacheFile}</b>. Cache always be expired.',
-		// 103 error depricated
-		// 401 error depricated
-		// 402 error depricated
-		// 403 error depricated
-		// 404 error depricated
-		// 405 error depricated
-		// 406 error depricated
-		// 407 error depricated
+		// 103 depricated
+		// 401 depricated
+		// 402 depricated
+		// 403 depricated
+		// 404 depricated
+		// 405 depricated
+		// 406 depricated
+		// 407 depricated
 		500=>'{$answer}',
 	);
-	public function __construct() {
-		require_once 'config.php';
-		$this->config = $CONFIG;
+	public function __construct($config = []) {
+		if(!empty($config)) $this->config = $config;
+		else {
+			require_once 'config.php';
+			$this->config = $CONFIG;
+		}
 		$this->checkConfig();
 		$this->checkCacheRights();
 		$this->setLang();
 		$this->setOptions();
+		$this->api = new \InstagramScraper\Instagram();
 	}
-	public function apiQuery() {
+	private function apiQuery() {
 		try {
-			$account = Instagram::getAccount($this->config['LOGIN']);
-			if($account->isPrivate) {
+			$this->account = $this->api->getAccount($this->config['LOGIN']);
+			if($this->account->isPrivate()) {
 				throw new Exception('Requested profile is private');
 			}
-			$this->data['userid'] 		= $account->id;
-			$this->data['username'] 	= $account->username;
-			$this->data['avatar'] 		= $account->profilePicUrl;
-			$this->data['posts']	 	= $account->mediaCount;
-			$this->data['followers'] 	= $account->followedByCount;
-			$this->data['following'] 	= $account->followsCount;
 			// by hashtag
 			if(!empty($this->config['HASHTAG'])) {
-				$mediaArray = array();
+				$mediaArray = [];
 				$tags = explode(',', $this->config['HASHTAG']);
 				if(!empty($tags)) {
 					foreach ($tags as $key=>$item){
 						$item = strtolower(trim($item));
 						if(!empty($item)) {
-							$mediaArray[] = Instagram::getMediasByTag($item, $this->config['imgCount']);
+							$mediaArray[] = $this->api->getMediasByTag( $item, $this->config['imgCount'] );
 						}
 					}
 				}
 				$medias = new ArrayObject();
 				if(!empty($mediaArray)) {
 					foreach ($mediaArray as $key=>$item){
-						$medias = (object) array_merge((array) $medias, (array) $item);
+						$medias = (object) array_merge( (array) $medias, (array) $item );
 					}
 				}
-				unset($mediaArray);
-				//$medias = Instagram::getMediasByTag($this->config['HASHTAG'], $this->config['imgCount']);
+				$this->medias = $medias;
+				unset($mediaArray,$medias);
 			}
 			// by profile
 			else {
-				$medias = Instagram::getMedias($this->config['LOGIN'], $this->config['imgCount']);
+				$this->medias = $this->api->getMedias( $this->config['LOGIN'], $this->config['imgCount'] );
 			}
-			$images = array();
-			if(!empty($medias)) {
-				foreach ($medias as $key=>$item) {
-					$images[$key]['id'] 			= $item->id;
-					$images[$key]['code'] 			= $item->code;
-					$images[$key]['created'] 		= $item->createdTime;
-					$images[$key]['text'] 			= $item->caption;
-					$images[$key]['link'] 			= $item->link;
-					$images[$key]['fullsize'] 		= $item->imageHighResolutionUrl;
-					$images[$key]['large'] 			= $item->imageStandardResolutionUrl;
-					$images[$key]['small'] 			= $item->imageLowResolutionUrl;
-					$images[$key]['likesCount'] 	= $item->likesCount;
-					$images[$key]['commentsCount'] 	= $item->commentsCount;
-					if(!empty($this->config['HASHTAG'])) {
-						$images[$key]['authorId'] = $item->ownerId;
-					}
-					else {
-						$images[$key]['authorId'] = $account->id;
-					}
-				}
-			}
-			$this->data['images'] = $images;
 		} catch (Exception $e) {
 			$this->data = array();
 			$this->answer = $e->getMessage();
@@ -121,13 +99,13 @@ class inWidget {
 		// Get banned ids. Ignore any errors
 		// -------------------------------------------------
 		if(!empty($this->config['bannedLogins'])) {
-			foreach ($this->config['bannedLogins'] as $key=>$item){
+			foreach ($this->config['bannedLogins'] as $key=>$item) {
 				try {
-					$banned = Instagram::getAccount($item['login']);
-					$this->config['bannedLogins'][$key]['id'] = $banned->id;
+					$banned = $this->api->getAccount($item['login']);
+					$this->config['bannedLogins'][$key]['id'] = $banned->getId();
 				} catch (Exception $e) {}
 			}
-			$this->data['banned'] = $this->config['bannedLogins'];
+			$this->banned = $this->config['bannedLogins'];
 		}
 	}
 	public function getData() {
@@ -138,7 +116,36 @@ class inWidget {
 			$this->data = json_decode(file_get_contents($this->cacheFile));
 		}
 	}
-	public function getCache() {
+	private function getDataNamed() {
+		$data['userid'] 	= $this->account->getId();
+		$data['username'] 	= $this->account->getUsername();
+		$data['avatar'] 	= $this->account->getProfilePicUrl();
+		$data['posts']	 	= $this->account->getMediaCount();
+		$data['followers'] 	= $this->account->getFollowedByCount();
+		$data['following'] 	= $this->account->getFollowsCount();
+		$data['banned']  	= $this->banned;
+		$data['images']		= [];
+		if(!empty($this->medias)) {
+			foreach ($this->medias as $key=>$item) {
+				$data['images'][$key]['id'] 			= $item->getId();
+				$data['images'][$key]['code'] 			= $item->getShortCode();
+				$data['images'][$key]['created'] 		= $item->getCreatedTime();
+				$data['images'][$key]['text'] 			= $item->getCaption();
+				$data['images'][$key]['link'] 			= $item->getLink();
+				$data['images'][$key]['fullsize'] 		= $item->getImageHighResolutionUrl();
+				$data['images'][$key]['large'] 			= $item->getImageStandardResolutionUrl();
+				$data['images'][$key]['small'] 			= $item->getImageLowResolutionUrl();
+				$data['images'][$key]['likesCount'] 	= $item->getLikesCount();
+				$data['images'][$key]['commentsCount'] 	= $item->getCommentsCount();
+				$data['images'][$key]['authorId'] 		= $item->getOwnerId();
+			}
+		}
+		return $data;
+	}
+	private function getCache() {
+		if($this->config['cacheSkip'] === true) {
+			return false;
+		}
 		$mtime = @filemtime($this->cacheFile);
 		if($mtime<=0) die($this->getError(102));
 		$cacheExpTime = $mtime + ($this->config['cacheExpiration']*60*60);
@@ -151,11 +158,11 @@ class inWidget {
 		}
 		return $cacheData;
 	}
-	public function createCache() {
-		$data = json_encode($this->data);
+	private function createCache() {
+		$data = json_encode($this->getDataNamed());
 		file_put_contents($this->cacheFile,$data,LOCK_EX);
 	}
-	public function checkConfig() {
+	private function checkConfig() {
 		if(!empty($this->config['LOGIN'])) {
 			$this->config['LOGIN'] = strtolower(trim($this->config['LOGIN']));
 		}
@@ -181,7 +188,7 @@ class inWidget {
 		}
 		else $this->config['bannedLogins'] = array();
 	}
-	public function checkCacheRights() {
+	private function checkCacheRights() {
 		$cacheFile = @fopen($this->cacheFile,'a+b');
 		if(!is_resource($cacheFile)) die($this->getError(101));
 		fclose($cacheFile);
@@ -244,7 +251,7 @@ class inWidget {
 		}
 		return $count;
 	}
-	public function getError($code) {
+	private function getError($code) {
 		$this->errors[$code] = str_replace('{$cacheFile}',$this->cacheFile,$this->errors[$code]);
 		$this->errors[$code] = str_replace('{$answer}',strip_tags($this->answer),$this->errors[$code]);
 		$result = '<b>ERROR <a href="http://inwidget.ru/#error'.$code.'" target="_blank">#'.$code.'</a>:</b> '.$this->errors[$code];
