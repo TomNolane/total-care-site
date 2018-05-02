@@ -20,13 +20,13 @@ $CONFIG = array(
 	'bannedLogins' => '',
 		
 	// Random order of pictures [ true / false ]
-	'imgRandom' => false,
+	'imgRandom' => true,
 
 	// How many pictures widget will get from Instagram?
-	'imgCount' => 20,
+	'imgCount' => 30,
 
 	// Cache expiration time (hours)
-	'cacheExpiration' => 1,
+	'cacheExpiration' => 6,
 		
 	// Skip cache data [ true / false ]
 	// If this is true, requests to Instagram API will be sending every time.
